@@ -2,7 +2,7 @@
 /**
   ******************************************************************************
   * @file           : main.c
-  * @brief          : Main program body
+  * @brief          : Main program body for Exercise 1
   ******************************************************************************
   * @attention
   *
@@ -32,6 +32,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define MAX_LED 2
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -43,9 +44,8 @@
 TIM_HandleTypeDef htim2;
 
 /* USER CODE BEGIN PV */
-int led_buffer[2] = {1, 2};  // Buffer to hold the values to display on the 7-segment display
-int counter = 500;           // 500ms switching time
-int current_led = 0;         // Keeps track of which LED is being displayed
+int count = 50;
+int STATE = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -53,30 +53,12 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
-
+void display7SEG(int num);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-void display7SEG(int num) {
-    // Implement your 7-segment display logic
-    // Assuming you're using GPIO to control the segments
-    // Example: GPIO_WritePin(PORT, PIN, GPIO_PIN_SET or GPIO_PIN_RESET);
-    switch(num) {
-        case 0:
-            // Set GPIO pins to display '0'
-            break;
-        case 1:
-            // Set GPIO pins to display '1'
-            break;
-        case 2:
-            // Set GPIO pins to display '2'
-            break;
-        default:
-            // Clear display or show nothing
-            break;
-    }
-}
+
 /* USER CODE END 0 */
 
 /**
@@ -109,13 +91,32 @@ int main(void)
   MX_GPIO_Init();
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-
+  HAL_TIM_Base_Start_IT(&htim2);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+
+    if (count == 0)
+    {
+      if (STATE == 0)
+      {
+        display7SEG(1);  // Display number "1" on the first 7-segment LED
+        HAL_GPIO_WritePin(EN0_GPIO_Port, EN0_Pin, GPIO_PIN_RESET);
+        HAL_GPIO_WritePin(EN1_GPIO_Port, EN1_Pin, GPIO_PIN_SET);
+        STATE = 1;
+      }
+      else if (STATE == 1)
+      {
+        display7SEG(2);  // Display number "2" on the second 7-segment LED
+        HAL_GPIO_WritePin(EN0_GPIO_Port, EN0_Pin, GPIO_PIN_SET);
+        HAL_GPIO_WritePin(EN1_GPIO_Port, EN1_Pin, GPIO_PIN_RESET);
+        STATE = 0;
+      }
+      count = 50;  // Reset count to start the next interval
+    }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -217,14 +218,17 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, LED_RED__Pin|EN0_Pin|EN1_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, DOT_Pin|LED_RED__Pin|EN0_Pin|EN1_Pin
+                          |EN2_Pin|EN3_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, SEG_0_Pin|SEG_1_Pin|SEG_2_Pin|SEG_3_Pin
                           |SEG_4_Pin|SEG_5_Pin|SEG_6_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : LED_RED__Pin EN0_Pin EN1_Pin */
-  GPIO_InitStruct.Pin = LED_RED__Pin|EN0_Pin|EN1_Pin;
+  /*Configure GPIO pins : DOT_Pin LED_RED__Pin EN0_Pin EN1_Pin
+                           EN2_Pin EN3_Pin */
+  GPIO_InitStruct.Pin = DOT_Pin|LED_RED__Pin|EN0_Pin|EN1_Pin
+                          |EN2_Pin|EN3_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -242,20 +246,40 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-
-// Interrupt handler to toggle between two 7-segment displays every 500ms
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
-    if (htim->Instance == TIM2) { // Check if it's the right timer
-        counter--; // Decrease the counter by 1 (10ms elapsed)
-
-        if (counter <= 0) {
-            counter = 500; // Reset counter (500ms)
-            current_led = !current_led; // Toggle between 0 and 1
-
-            display7SEG(led_buffer[current_led]); // Display the value on the current LED
-        }
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  if (htim->Instance == TIM2)
+  {
+    if (count != 0)
+    {
+      count--;  // Decrement the count every 10ms
     }
+  }
 }
+
+void display7SEG(int num)
+{
+  switch (num)
+  {
+    case 0:
+      HAL_GPIO_WritePin(GPIOB, SEG_0_Pin | SEG_1_Pin | SEG_2_Pin | SEG_3_Pin | SEG_4_Pin | SEG_5_Pin, GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(GPIOB, SEG_6_Pin, GPIO_PIN_SET);
+      break;
+    case 1:
+      HAL_GPIO_WritePin(GPIOB, SEG_1_Pin | SEG_2_Pin, GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(GPIOB, SEG_0_Pin | SEG_3_Pin | SEG_4_Pin | SEG_5_Pin | SEG_6_Pin, GPIO_PIN_SET);
+      break;
+    case 2:
+      HAL_GPIO_WritePin(GPIOB, SEG_0_Pin | SEG_1_Pin | SEG_3_Pin | SEG_4_Pin | SEG_6_Pin, GPIO_PIN_RESET); // Các đoạn cần sáng
+      HAL_GPIO_WritePin(GPIOB, SEG_2_Pin | SEG_5_Pin, GPIO_PIN_SET); // Các đoạn cần tắt
+      break;
+    // Add cases for other numbers as needed
+    default:
+      HAL_GPIO_WritePin(GPIOB, SEG_0_Pin | SEG_1_Pin | SEG_2_Pin | SEG_3_Pin | SEG_4_Pin | SEG_5_Pin | SEG_6_Pin, GPIO_PIN_SET);
+      break;
+  }
+}
+
 /* USER CODE END 4 */
 
 /**
